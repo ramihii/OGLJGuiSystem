@@ -1,0 +1,126 @@
+/**
+ * @author PizzAna
+ */
+apply plugin: 'java'
+apply plugin: 'maven'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'signing'
+
+version = '0.1-SNAPSHOT'
+group 'io.github.celestibytes'
+archivesBaseName = project.getName()
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	compile 'org.lwjgl.lwjgl:lwjgl:2.9.1'
+	compile 'org.lwjgl.lwjgl:lwjgl_util:2.9.1'
+}
+
+sourceSets {
+	main {
+		java {
+			srcDir 'src'
+		}
+		resources {
+			srcDir 'res'
+		}
+	}
+	test {
+		java {
+			srcDir 'test/src'
+		}
+		resources {
+			srcDir 'test/res'
+		}
+	}
+}
+
+task javadocJar(type: Jar) {
+    classifier = 'javadoc'
+    from javadoc
+}
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+artifacts {
+    archives jar, javadocJar, sourcesJar
+}
+
+signing {
+    required {gradle.taskGraph.hasTask("uploadArchives")}
+    sign configurations.archives
+}
+
+uploadArchives {
+    repositories {
+        if (project.hasProperty("ossrhUsername") && project.hasProperty("ossrhPassword"))
+        {
+            mavenDeployer {
+                beforeDeployment {MavenDeployment deployment -> signing.signPom(deployment)}
+
+                repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                    authentication(userName: ossrhUsername, password: ossrhPassword)
+                }
+
+                snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                    authentication(userName: ossrhUsername, password: ossrhPassword)
+                }
+
+                pom {
+                    groupId = project.group
+                    version = project.version
+                    artifactId = project.archivesBaseName
+                }
+
+                pom.project {
+                    name project.archivesBaseName
+                    packaging 'jar'
+                    description 'A Java library that makes it easier to create guis for a game using OpenGL'
+                    url 'https://github.com/lepakko683/OGLJGuiSystem'
+
+                    scm {
+                        url 'https://github.com/lepakko683/OGLJGuiSystem'
+                        connection 'scm:git:git://github.com/lepakko683/OGLJGuiSystem.git'
+                        developerConnection 'scm:git:git@github.com:lepakko683/OGLJGuiSystem.git'
+                    }
+
+                    issueManagement {
+                        system 'github'
+                        url 'https://github.com/lepakko683/OGLJGuiSystem/issues'
+                    }
+
+					licenses {
+                        license {
+                            name 'GNU LESSER GENERAL PUBLIC LICENSE v3'
+                            url 'http://www.gnu.org/licenses/lgpl-3.0.html'
+                        }
+                    }
+                    
+                    developers {
+						developer {
+							id 'okkapel'
+							name 'Okkapel'
+							roles {role 'developer'}
+						}
+                    }
+                }
+            }
+        }
+        else
+        {
+            add project.repositories.mavenLocal()
+            logger.info('Publishing to repo folder')
+
+            mavenDeployer {
+                repository(url: 'file://localhost/' + project.file('repo').getAbsolutePath())
+            }
+        }
+    }
+}
