@@ -141,7 +141,6 @@ public class Gui implements IGui {
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glEnableClientState(GL_COLOR_ARRAY);
 		
-		
 		glInterleavedArrays(GL_T2F_C3F_V3F, 4*8, this.renderData); // GL_C3F_V3F
 		
 		glDrawArrays(GL_TRIANGLES, 0, 6);
