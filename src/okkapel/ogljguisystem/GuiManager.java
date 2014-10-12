@@ -4,10 +4,15 @@ import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
+import okkapel.kkplglutil.rendering.GLHandler;
+import okkapel.kkplglutil.rendering.GLRenderMethod;
+import okkapel.kkplglutil.rendering.RenderBufferGenerator;
+import okkapel.kkplglutil.util.Texture;
 import okkapel.ogljguisystem.util.MouseHelper;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.input.Mouse;
+import org.lwjgl.opengl.GL15;
 
 import static org.lwjgl.opengl.GL11.*;
 
@@ -15,9 +20,7 @@ public class GuiManager {
 	
 	public static final int dragBarHeight = 25;
 	
-	public static FloatBuffer guiDecorDta = null;
-	
-	private static int TEXTURE_GUI_DECOR = -1;
+	private static Texture TEXTURE_GUI_DECOR = null;
 	private static int WINDOW_WIDTH = -1;
 	private static int WINDOW_HEIGHT = -1;
 	
@@ -30,63 +33,21 @@ public class GuiManager {
 		return WINDOW_HEIGHT;
 	}
 	
-	public static int getTexGuiDecor() {
+	public static Texture getTexGuiDecor() {
 		return TEXTURE_GUI_DECOR;
 	}
-	
-	public static final float[] guiDecorInterl = new float[] {
-		// U   V   R   G   B   X     Y     Z
-		// Close button
-		0.75f, 1f, 1f, 1f, 1f, 0.0f, 0.0f, 0.0f, 
-		0.75f, 0f, 1f, 1f, 1f, 0.0f, dragBarHeight, 0.0f, 
-		1f, 0f, 1f, 1f, 1f, dragBarHeight, dragBarHeight, 0.0f, 
-		
-		1f, 0f, 1f, 1f, 1f, dragBarHeight, dragBarHeight, 0.0f,
-		1f, 1f, 1f, 1f, 1f, dragBarHeight, 0.0f, 0.0f, 
-		0.75f, 1f, 1f, 1f, 1f, 0.0f, 0.0f, 0.0f,
-		
-		// Default size
-		0f, 1f, 1f, 1f, 1f, 3*dragBarHeight, 0.0f, 0.0f,
-		0f, 0f, 1f, 1f, 1f, 3*dragBarHeight, dragBarHeight, 0.0f,
-		.25f, 0f, 1f, 1f, 1f, 4*dragBarHeight, dragBarHeight, 0.0f,
-		
-		.25f, 0f, 1f, 1f, 1f, 4*dragBarHeight, dragBarHeight, 0.0f,
-		.25f, 1f, 1f, 1f, 1f, 4*dragBarHeight, 0.0f, 0.0f,
-		0f, 1f, 1f, 1f, 1f, 3*dragBarHeight, 0.0f, 0.0f,
-		
-		// Minimize
-		0.5f, 1f, 1f, 1f, 1f, dragBarHeight, 0.0f, 0.0f,
-		0.5f, 0f, 1f, 1f, 1f, dragBarHeight, dragBarHeight, 0.0f,
-		.75f, 0f, 1f, 1f, 1f, 2*dragBarHeight, dragBarHeight, 0.0f,
-		
-		.75f, 0f, 1f, 1f, 1f, 2*dragBarHeight, dragBarHeight, 0.0f,
-		.75f, 1f, 1f, 1f, 1f, 2*dragBarHeight, 0.0f, 0.0f,
-		0.5f, 1f, 1f, 1f, 1f, dragBarHeight, 0.0f, 0.0f,
-		
-		// Maximize
-		0.25f, 1f, 1f, 1f, 1f, 2*dragBarHeight, 0.0f, 0.0f,
-		0.25f, 0f, 1f, 1f, 1f, 2*dragBarHeight, dragBarHeight, 0.0f,
-		.5f, 0f, 1f, 1f, 1f, 3*dragBarHeight, dragBarHeight, 0.0f,
-		
-		.5f, 0f, 1f, 1f, 1f, 3*dragBarHeight, dragBarHeight, 0.0f,
-		.5f, 1f, 1f, 1f, 1f, 3*dragBarHeight, 0.0f, 0.0f,
-		0.25f, 1f, 1f, 1f, 1f, 2*dragBarHeight, 0.0f, 0.0f
-	};
 	
 	/**Note: active guis are normally displayed guis or minimized.*/
 	public List<Gui> activeGuis;
 	private int draggedGuiId = -1;
 	
-	public static void init(int gui_decor_tex_id, int window_width, int window_height) {
-		TEXTURE_GUI_DECOR = gui_decor_tex_id;
+	public static void init(Texture gui_decor_tex, int window_width, int window_height) {
+		TEXTURE_GUI_DECOR = gui_decor_tex;
 		WINDOW_WIDTH = window_width;
 		WINDOW_HEIGHT = window_height;
-		guiDecorDta = BufferUtils.createFloatBuffer(guiDecorInterl.length);
-		guiDecorDta.put(guiDecorInterl);
-		guiDecorDta.flip();
 	}
 	
-	/**THIS HAS TO BE CALLED EVERY TIME THE GAME WINDOW IS RESIZED OR ELSE EVERYTHING WILL START TO BREAK!*/
+	/**THIS HAS TO BE CALLED EVERY TIME THE GAME WINDOW IS RESIZED OR GUIS WILL START TO BREAK!*/
 	public static void onResize(int newWindowWidth, int newWindowHeight) {
 		WINDOW_WIDTH = newWindowWidth;
 		WINDOW_HEIGHT = newWindowHeight;
@@ -96,39 +57,23 @@ public class GuiManager {
 		activeGuis = new ArrayList<Gui>(0);
 	}
 	
-	public static float[] getGuiDecor(float x, float y, float width) {
-		float[] ret = new float[6*8*3];
-		System.arraycopy(guiDecorInterl, 0, ret, 0, ret.length);
-		
-		for(int i=0;i<3;i++) {
-			ret[i*6*8+5] = x+width-(i+1)*dragBarHeight; ret[i*6*8+6] = y;
-			ret[i*6*8+13] = x+width-(i+1)*dragBarHeight; ret[i*6*8+14] = y+dragBarHeight;
-			ret[i*6*8+21] = x+width-i*dragBarHeight; ret[i*6*8+22] = y+dragBarHeight;
-			
-			ret[i*6*8+29] = x+width-i*dragBarHeight; ret[i*6*8+30] = y+dragBarHeight;
-			ret[i*6*8+37] = x+width-i*dragBarHeight; ret[i*6*8+38] = y;
-			ret[i*6*8+45] = x+width-(i+1)*dragBarHeight; ret[i*6*8+46] = y;
-		}
+	public Gui createGui(int x, int y, int width, int height) {
+		RenderBufferGenerator rbg = RenderBufferGenerator.INSTANCE;
+		addGuiDecoration(rbg, x, y, width, height);
+		Gui ret = new Gui(0, 0, width, height);
+		ret.setupRendering(rbg);
+		int vcount = rbg.getVertexCount();
+		System.out.println("Texdstgss: " + vcount);
+		ret.guiRptr = GLHandler.createROBJ(rbg.createBuffer(), GL15.GL_DYNAMIC_DRAW, TEXTURE_GUI_DECOR, vcount, GLRenderMethod.VERTEX_BUFFER_OBJECT);
 		return ret;
 	}
 	
-	public void interlTest() {
-		glEnable(GL_TEXTURE_2D);
-		glBindTexture(GL_TEXTURE_2D, TEXTURE_GUI_DECOR);
-		glEnableClientState(GL_VERTEX_ARRAY);
-		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-		
-		glInterleavedArrays(GL_T2F_V3F, 4*5, guiDecorDta); // GL_T2F_C3F_V3F?
-		
-		glDrawArrays(GL_TRIANGLES, 0, 24);
-		
-		glDisableClientState(GL_VERTEX_ARRAY);
-		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-		glBindTexture(GL_TEXTURE_2D, 0);
-		glDisable(GL_TEXTURE_2D);
+	public void addGuiDecoration(RenderBufferGenerator rbg, int x, int y, int width, int height) {
+		rbg.addRect2D(x+width-dragBarHeight, y, x+width, y+dragBarHeight, 1f, 1f, 1f, 1f, 1f, 0.75f, 1f, 1f, 0f);
+		rbg.addRect2D(x+width-dragBarHeight*2, y, x+width-dragBarHeight, y+dragBarHeight, 1f, 1f, 1f, 1f, 1f, 0f, 1f, 0.25f, 0f);
+		rbg.addRect2D(x+width-dragBarHeight*3, y, x+width-dragBarHeight*2, y+dragBarHeight, 1f, 1f, 1f, 1f, 1f, 0.5f, 1f, 0.75f, 0f);
 	}
 	
-	private float trsX, trsY; // Current translation
 	public void renderGuis() {
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -136,11 +81,10 @@ public class GuiManager {
 		
 		for(int i=activeGuis.size()-1;i>-1;i--) {
 			iter = activeGuis.get(i);
-//			GuiRenderer.render(iter);
-			iter.renderInter();
+			GLHandler.renderRendPtr(iter.guiRptr); // TODO: allow custom textures
 			
-			
-			trsX += iter.getX()-trsX; trsY += iter.getY()-trsY;
+			GLHandler.renderRPTRPartiallyWOTex(iter.guiRptr, 18, 6);
+			GLHandler.renderRPTRPartially(iter.guiRptr, 0, 18);
 		}
 		
 		glDisable(GL_BLEND);
@@ -237,7 +181,6 @@ public class GuiManager {
 	}
 	
 	public void openGui(Gui gui) {
-		gui.setupRenderData();
 		this.draggedGuiId++;
 		this.activeGuis.add(0, gui);
 	}

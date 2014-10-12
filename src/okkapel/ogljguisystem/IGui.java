@@ -1,7 +1,6 @@
 package okkapel.ogljguisystem;
 
-import okkapel.ogljguisystem.util.Colour;
-
+import okkapel.kkplglutil.util.Colour;
 
 public interface IGui {
 	public int getX();
